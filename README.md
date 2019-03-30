@@ -11,11 +11,11 @@ The software is written in Python3 with PyQt5 as user interface.
 
 EXECUTE
 
-The program can be executed from source by the command:
-python main.py      in Windows or
-python3 main.py     in Linux
-Versions built for Windows or Linux have an executable with the name
-SESToPy
+The program can be executed from source. Python3 needs to be installed and the
+program can be started with the command:
+- in Windows: python main.py
+- in Linux: python3 main.py
+Versions built for Windows or Linux have an executable with the name "SESEuPy"
 in the program directory.
 
 CHANGELOG
