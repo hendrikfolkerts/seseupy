@@ -6,8 +6,9 @@ The software implements an Execution Unit according to the System Entity
 Structure / Model Base (SES/MB) infrastructure introduced for automatic
 execution of simulation experiments.
 Please read the documentation for further information. A comprehensive
-introduction to the SES/MB theory is given in the documentation for SESToPy.
-The software is written in Python3 with PyQt5 as user interface.
+introduction to the SES/MB theory is given in the documentation of the SES
+modeling tool SESToPy.
+The software is written in Python3.
 
 EXECUTE
 
