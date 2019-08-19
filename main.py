@@ -59,6 +59,8 @@ def ExecutionUnit(modelfolder, deleteModelFolders=False):
                 modelsAndParamDict.update({"models": modellines})  # list of models including their path as in the configuration file   ["/Path/to/Model1.slx", "/Path/to/Model1.slx", ...]
             elif co[0:11] == "SIMULATOR: ":
                 simulator = co[11:]  # "Simulink", "OpenModelica" or "Dymola"
+            elif co[0:11] == "INTERFACE: ":
+                modelsAndParamDict.update({"interface": co[11:]})
             elif co[0:11] == "MODELBASE: ":
                 mblines.append(co[11:])
                 modelsAndParamDict.update({"modelbase": mblines})  # complete paths to the files containing the modelbase
@@ -83,6 +85,8 @@ def ExecutionUnit(modelfolder, deleteModelFolders=False):
     if not modelsAndParamDict.get("models"):
         executable = False
     elif simulator == "":
+        executable = False
+    elif modelsAndParamDict.get("interface") == "native" and not modelsAndParamDict.get("modelbase"):
         executable = False
     elif not modelsAndParamDict.get("starttime"):
         executable = False
@@ -148,6 +152,12 @@ def ExecutionUnit(modelfolder, deleteModelFolders=False):
         # simulate the models
         if simulatorFound:
 
+            #Dymola cannot be executed in parallel (probably because Dymola itself starts several parallel processes -> in Windows PowerShell: dymola -nowindow ScriptToExecute.mos | Out-Null -> in Windows Command: START /WAIT dymola -nowindow ScriptToExecute.mos -> in Python seems to be impossible)
+            if simulator == "Dymola" and execution == "parallel":
+                execution = "sequential"
+                print("Currently simulation with Dymola cannot be executed in parallel. Switching to sequential execution for Dymola.\n")
+
+            #prepare the execution
             q = mp.Queue()  # queue for the results
             numToExecute = len(modelsAndParamDict.get("models"))
             processes = []  # list of processes -> needed for joining later
@@ -164,62 +174,76 @@ def ExecutionUnit(modelfolder, deleteModelFolders=False):
 
             # get the results from the queue
             results = []
+            resultsOk = True
             for i in range(numToExecute):
-                results.append(q.get())
-
-            print("\nThe simulation is finished.\n")
+                resFromQueue = q.get()
+                if resFromQueue:
+                    results.append(resFromQueue)
+                else:
+                    resultsOk = False
 
             #make sure the child processes terminate and go on with the parent
             for p in processes:
                 p.join()
 
-            # delete the simulation folder
-            if deleteModelFolders:
-                shutil.rmtree(modelfolder)
+            if resultsOk:
+                print("\nThe simulation is finished.\n")
 
-            # create resultfile
-            resultfile = modelfolder+".csv"
+                # create resultfile
+                resultfile = modelfolder+".csv"
 
-            #write the first line -> modelname (and path, if the model will not be deleted)
-            fileobject = open(resultfile, "w")
-            modelnameparamlinessort = []    #sorted modelnameparamlines according to the order in results
-            for i in range(len(results)):   #first line
-                #get the modelname (and path, if the model will not be deleted) to write
-                if deleteModelFolders:  # the simulation folders (and so the model) are deleted anyway, so do not write the whole path to the modelfile in the result
-                    mn = os.path.basename(results[i][0])
-                    mc = os.path.splitext(mn)[0]
-                else:
-                    mn = results[i][0]
-                    mc = os.path.splitext(os.path.basename(mn))[0]
-                fileobject.write(mn)
-                #sort the modelnameparamlines according to the order in results
-                for k in range(len(modelnameparamlines)):
-                    if mc == modelnameparamlines[k].split(" ")[0]:
-                        modelnameparamlinessort.append(modelnameparamlines[k])
-                #write the commas depending on the number of
-                for j in range(len(results[i][1][0])-1):
-                    fileobject.write(",")
-                fileobject.write(";")
-            fileobject.write("\n")
+                #write the first line -> modelname (and path, if the model will not be deleted)
+                fileobject = open(resultfile, "w")
+                modelnameparamlinessort = []    #sorted modelnameparamlines according to the order in results
+                for i in range(len(results)):   #first line
+                    #get the modelname (and path, if the model will not be deleted) to write
+                    if deleteModelFolders:  # the simulation folders (and so the model) are deleted anyway, so do not write the whole path to the modelfile in the result
+                        mn = os.path.basename(results[i][0])
+                        mc = os.path.splitext(mn)[0]
+                    else:
+                        mn = results[i][0]
+                        mc = os.path.splitext(os.path.basename(mn))[0]
+                    fileobject.write(mn)
+                    #sort the modelnameparamlines according to the order in results
+                    for k in range(len(modelnameparamlines)):
+                        if mc == modelnameparamlines[k].split(" ")[0]:
+                            modelnameparamlinessort.append(modelnameparamlines[k])
+                    #write the commas depending on the number of
+                    for j in range(len(results[i][1][0])-1):
+                        fileobject.write(",")
+                    fileobject.write(";")
+                fileobject.write("\n")
 
-            #write the parameterization
-            for i in range(len(modelnameparamlinessort)):
-                fileobject.write(modelnameparamlinessort[i])
-                for j in range(len(results[i][1][0])-1):
-                    fileobject.write(",")
-                fileobject.write(";")
-            fileobject.write("\n")
+                #write the parameterization
+                for i in range(len(modelnameparamlinessort)):
+                    fileobject.write(modelnameparamlinessort[i])
+                    for j in range(len(results[i][1][0])-1):
+                        fileobject.write(",")
+                    fileobject.write(";")
+                fileobject.write("\n")
 
-            #write the headings and the simulation results
-            for j in range(len(results[0][1])):   #third line and rest
-                line = ""
-                for i in range(len(results)):
-                    line = line + ",".join(results[i][1][j]) + ";"
-                fileobject.write(line + "\n")
+                #write the headings and the simulation results
+                for j in range(len(results[0][1])):   #third line and rest
+                    line = ""
+                    for i in range(len(results)):
+                        line = line + ",".join(results[i][1][j]) + ";"
+                    fileobject.write(line + "\n")
 
-            fileobject.close()
+                fileobject.close()
 
-            print("SESEuPy has finished all work.\nRESULTFILE: " + resultfile)
+                #delete the simulation folder
+                if modelsAndParamDict.get("interface") == "FMI" and deleteModelFolders:
+                    print("The modelfolders cannot be deleted by SESEuPy when using FMI.\n")
+                elif deleteModelFolders:
+                    shutil.rmtree(modelfolder)
+
+                print("SESEuPy has finished all work.\nRESULTFILE: " + resultfile)
+
+            else:
+                print("Not OK - An error during simulation occurred. The simulation directories were not deleted. The last one should contain the model not being able to be executed.\n"
+                      "In case the simulation is done with Simulink, try to execute the created .m script in Matlab and find the errors.\n"
+                      "In case the simulation is done with OpenModelica, execute the created .mos script from the command/shell using the command 'omedit scriptname.mos'."
+                      "In case the simulation is done with Dymola, execute the created .mos script from the command/shell using the command 'dymola scriptname.mos'.")
 
         else:
             print("Not OK - Simulator not found!")
