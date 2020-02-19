@@ -46,13 +46,16 @@ def ExecutionUnit(modelfolder, deleteModelFolders=False):
     mblines = []
     simulator = ""
     execution = ""
+    sesvar = []
     try:
         with open(conffile) as fileobject:  # it is closed after finishing the block, even if an exception is raised
             config = fileobject.read()
         configsplit = config.split("\n")
 
         for co in configsplit:
-            if co[0:16] == "MODELNAMEPARAM: ":
+            if co[0:8] == "SESVAR: ":
+                sesvar.append(co[8:])
+            elif co[0:16] == "MODELNAMEPARAM: ":
                 modelnameparamlines.append(co[16:])
             elif co[0:7] == "MODEL: ":
                 modellines.append(co[7:])
@@ -215,10 +218,14 @@ def ExecutionUnit(modelfolder, deleteModelFolders=False):
                 fileobject.write("\n")
 
                 #write the parameterization
+                sesvarstr = "SESvar"
+                for i in range(len(sesvar)):
+                    sesvarstr = sesvarstr + " #" + sesvar[i].replace(" = ","=")
                 for i in range(len(modelnameparamlinessort)):
                     fileobject.write(modelnameparamlinessort[i])
-                    for j in range(len(results[i][1][0])-1):
+                    for j in range(len(results[i][1][0])-2):
                         fileobject.write(",")
+                    fileobject.write(',' + sesvarstr)
                     fileobject.write(";")
                 fileobject.write("\n")
 
