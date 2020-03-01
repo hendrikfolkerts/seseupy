@@ -6,11 +6,15 @@ import os
 import shutil
 import subprocess
 import csv
+import platform
 
 class functionsSimulink():
 
     #run the system
     def runSimulation(self, modelfilepathname, mAPD):
+        #set the system
+        syst = platform.system()
+
         #add necessary parameters to the modelfile
         modelName = os.path.splitext(os.path.basename(modelfilepathname))[0]
         with open(modelfilepathname, "a") as fileobject:
@@ -135,7 +139,10 @@ class functionsSimulink():
             fileobject.write("quit\n")      #close Matlab
 
         #now run the script - start and wait until done
-        retcode = subprocess.call(["matlab", "-nosplash", "-nodesktop", "-wait", "-r", "\"run('" + modelfilepathname + "');\""])
+        if syst == "Windows":
+            retcode = subprocess.call(["matlab", "-nosplash", "-nodesktop", "-wait", "-r", "\"run('" + modelfilepathname + "');\""])
+        else:
+            retcode = subprocess.call(["matlab", "-nosplash", "-nodesktop", "-wait", "-r", "run('" + modelfilepathname + "');"])
         print("The simulation of the model " + modelName + " was executed by Simulink returning " + str(retcode) + ".")
         print("The simulation of the model " + modelName + " was saved as csv.")
 

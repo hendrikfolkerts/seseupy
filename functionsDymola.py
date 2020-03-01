@@ -8,11 +8,14 @@ import math
 import subprocess
 import ast
 import csv
+import platform
 
 class functionsDymola():
 
     #run the system
     def runSimulation(self, modelfilepathname, mAPD):
+        #set the system
+        syst = platform.system()
 
         #old approach: for every simulation an own folder is created in which the simulation takes place
         #for FMI each basic model is exported as FMU and the FMUs form the modelbase, the modelname one FMU belongs to is written in brackets in the config file
@@ -80,12 +83,16 @@ class functionsDymola():
         with open(scriptfilepathname, "w") as fileobject:
             #change the directory for the simulation to the modelfolder
             simpath = simpath.replace("/", "\\\\").replace("\\", "\\\\").replace("\\\\\\", "\\")
+            if syst != "Windows":
+                simpath = simpath.replace("\\", "/")
             fileobject.write("cd(\"" + simpath + "\");\n")
             #go through the modelbase entries and append them to load
             modelbasefilespathname = mAPD.get("modelbase")
             for modelbasefilepathname in modelbasefilespathname:
                 if mAPD.get("interface") == "native":  # for the native interface the modelbase files need to be loaded
                     modelbasefilepathname = modelbasefilepathname.replace("/", "\\\\").replace("\\", "\\\\").replace("\\\\\\", "\\")
+                    if syst != "Windows":
+                        modelbasefilepathname = modelbasefilepathname.replace("\\", "/")
                     fileobject.write("openModel(\"" + modelbasefilepathname + "\");\n")
                 else:   #for FMI the whole model is an FMU (which is imported in Dymola and therefore is a .mo file) needs to be loaded, the modelname one FMU belongs to is written in brackets in the config file
                     formodel, mbpathname = modelbasefilepathname.split(") ")  #the entry in the config file
@@ -93,9 +100,13 @@ class functionsDymola():
                     mbpathname = mbpathname.replace("/", "\\\\").replace("\\", "\\\\").replace("\\\\\\", "\\")
                     modelfilename = os.path.basename(modelfilepathname)  #the model to simulate
                     if os.path.basename(formodel) == modelfilename:
+                        if syst != "Windows":
+                            mbpathname = mbpathname.replace("\\", "/")
                         fileobject.write("openModel(\"" + mbpathname + "\");\n")
             #add the model to load
             modelfilepathnameDy = modelfilepathname.replace("/", "\\\\").replace("\\", "\\\\").replace("\\\\\\", "\\")
+            if syst != "Windows":
+                modelfilepathnameDy = modelfilepathnameDy.replace("\\", "/")
             fileobject.write("openModel(\"" + modelfilepathnameDy + "\");\n")
             #configuration and simulation execution
             fileobject.write("Modelica.Utilities.System.setWorkDirectory(\"" + simpath + "\");\n")
