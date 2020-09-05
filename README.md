@@ -32,7 +32,7 @@ in the program directory.
 CHANGELOG
 
 
-ToDo, Known Bugs, Notes
+KNOWN BUGS, NOTES, TODO
 
 
 LICENSE
