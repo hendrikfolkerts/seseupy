@@ -10,7 +10,7 @@ introduction to the SES/MB theory is given in the documentation of the SES
 modeling tool SESToPy.
 The software is written in Python3.
 It was tested with the simulation softwares Matlab R2018a (for Simulink),
-OpenModelica 1.12.0 and Dymola 2018.
+OpenModelica 1.12.0, and Dymola 2018.
 
 EXECUTE
 
